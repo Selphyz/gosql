@@ -18,6 +18,12 @@ func BeginReadSnapshot(ctx context.Context, driverName string, db *sql.DB) (func
 			return nil, err
 		}
 		return finishFunc(db), nil
+	case "pgx":
+		limitSingleConnection(db)
+		if _, err := db.ExecContext(ctx, "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"); err != nil {
+			return nil, err
+		}
+		return finishFunc(db), nil
 	default:
 		return nil, fmt.Errorf("single-transaction snapshot not supported for driver %q", driverName)
 	}
@@ -29,6 +35,12 @@ func BeginWriteTransaction(ctx context.Context, driverName string, db *sql.DB) (
 	case "mysql":
 		limitSingleConnection(db)
 		if _, err := db.ExecContext(ctx, "START TRANSACTION"); err != nil {
+			return nil, err
+		}
+		return finishFunc(db), nil
+	case "pgx":
+		limitSingleConnection(db)
+		if _, err := db.ExecContext(ctx, "BEGIN"); err != nil {
 			return nil, err
 		}
 		return finishFunc(db), nil

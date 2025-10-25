@@ -78,6 +78,24 @@ func (sw *SQLWriter) WriteTableDefinition(table, ddl string) error {
 	return nil
 }
 
+// WriteStatements writes arbitrary DDL statements (e.g., indexes, foreign keys).
+// Each statement is written on its own line, with a semicolon added if not present.
+func (sw *SQLWriter) WriteStatements(statements []string) error {
+	for _, stmt := range statements {
+		stmt = strings.TrimSpace(stmt)
+		if stmt == "" {
+			continue
+		}
+		if !strings.HasSuffix(stmt, ";") {
+			stmt += ";"
+		}
+		if _, err := io.WriteString(sw.w, stmt+"\n"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // WriteTableDataPreamble writes a comment before data rows.
 func (sw *SQLWriter) WriteTableDataPreamble(table string) error {
 	_, err := fmt.Fprintf(sw.w, "\n--\n-- Dumping data for table %s\n--\n\n", sw.provider.QuoteIdent(table))

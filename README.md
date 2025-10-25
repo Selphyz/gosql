@@ -1,6 +1,6 @@
 # gosql
 
-`gosql` is a Go-based CLI that can dump or migrate SQL databases. It supports MySQL, Oracle, and SQL Server databases with an extensible provider abstraction for future engines.
+`gosql` is a Go-based CLI that can dump or migrate SQL databases. It supports MySQL, PostgreSQL, Oracle, and SQL Server databases with an extensible provider abstraction for future engines.
 
 ## Features
 
@@ -9,7 +9,7 @@
 - Single binary with root auto-mode (`gosql --src ... [--dst ...]`)
 - Chunked streaming for large tables
 - Optional consistent snapshots via `--single-transaction`
-- Multi-database support: MySQL, Oracle, and SQL Server
+- Multi-database support: MySQL, PostgreSQL, Oracle, and SQL Server
 - Provider registry for adding new SQL engines
 
 ## Installation
@@ -54,6 +54,13 @@ gosql migrate \
   --single-transaction \
   --progress
 
+# PostgreSQL dump
+gosql dump \
+  --database postgres \
+  --src "postgres://user:pass@localhost:5432/mydb" \
+  --out postgres_dump.sql \
+  --single-transaction
+
 # Oracle dump
 gosql dump \
   --database oracle \
@@ -82,7 +89,7 @@ gosql --src "mysql://user:pass@src:3306/mydb" --dst "mysql://user:pass@dst:3306/
 
 ## Flags
 
-- `--database`: Database provider to use: `mysql`, `oracle`, or `sqlserver` (default: `mysql`)
+- `--database`: Database provider to use: `mysql`, `postgres`, `oracle`, or `sqlserver` (default: `mysql`)
 - `--provider`: Legacy alias for `--database` (deprecated)
 - `--chunk`: Rows per batch when streaming data (default `1000`)
 - `--single-transaction`: Use a consistent snapshot/transaction
@@ -100,6 +107,18 @@ mysql://user:password@host:port/database
 
 # DSN format
 user:password@tcp(host:port)/database
+```
+
+### PostgreSQL
+
+```bash
+# URL format
+postgres://user:password@host:port/database
+postgresql://user:password@host:port/database
+pgx://user:password@host:port/database
+
+# Keyword/value format
+host=localhost port=5432 dbname=mydb user=postgres password=secret
 ```
 
 ### Oracle
@@ -122,7 +141,7 @@ sqlserver://user:password@host:port?database=dbname
 server=host;database=dbname;user id=user;password=pass
 ```
 
-**Note:** When using non-URL connection strings (ADO/EZConnect), you may need to explicitly specify the `--database` flag if auto-detection fails.
+**Note:** When using non-URL connection strings (ADO/EZConnect/keyword), you may need to explicitly specify the `--database` flag if auto-detection fails.
 
 ## Testing
 

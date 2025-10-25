@@ -104,6 +104,18 @@ func Run(ctx context.Context, opts Options) (err error) {
 		if err := sw.WriteTableDefinition(table, ddl); err != nil {
 			return fmt.Errorf("write table definition %s: %w", table, err)
 		}
+
+		// Write additional DDL statements if provider supports them (e.g., indexes)
+		if extraDDLProv, ok := prov.(provider.AdditionalDDLProvider); ok {
+			extraStatements, err := extraDDLProv.TableExtraDDL(ctx, db, table)
+			if err != nil {
+				return fmt.Errorf("get extra DDL for table %s: %w", table, err)
+			}
+			if err := sw.WriteStatements(extraStatements); err != nil {
+				return fmt.Errorf("write extra DDL for table %s: %w", table, err)
+			}
+		}
+
 		if err := sw.WriteTableDataPreamble(table); err != nil {
 			return err
 		}

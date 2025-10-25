@@ -19,3 +19,11 @@ type SQLProvider interface {
 	DatabaseMetadata(ctx context.Context, db *sql.DB, dbName string) (DatabaseMetadata, error)
 	EnsureDatabase(ctx context.Context, dsn string, dbName string, meta DatabaseMetadata) error
 }
+
+// AdditionalDDLProvider is an optional interface that providers can implement
+// to supply additional DDL statements for a table (e.g., non-constraint indexes).
+// These statements are executed after the main CREATE TABLE statement during migration
+// and written after the table definition during dump operations.
+type AdditionalDDLProvider interface {
+	TableExtraDDL(ctx context.Context, db *sql.DB, table string) ([]string, error)
+}

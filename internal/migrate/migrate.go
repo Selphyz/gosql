@@ -136,6 +136,19 @@ func Run(ctx context.Context, opts Options) (err error) {
 			return fmt.Errorf("create table %s: %w", table, err)
 		}
 
+		// Execute additional DDL statements if provider supports them (e.g., indexes)
+		if extraDDLProv, ok := srcProv.(provider.AdditionalDDLProvider); ok {
+			extraStatements, err := extraDDLProv.TableExtraDDL(ctx, srcDB, table)
+			if err != nil {
+				return fmt.Errorf("get extra DDL for table %s: %w", table, err)
+			}
+			for _, stmt := range extraStatements {
+				if _, err := dstDB.ExecContext(ctx, stmt); err != nil {
+					return fmt.Errorf("execute extra DDL for table %s: %w", table, err)
+				}
+			}
+		}
+
 		rows, columns, err := srcProv.StreamRows(ctx, srcDB, table)
 		if err != nil {
 			return fmt.Errorf("stream rows %s: %w", table, err)
