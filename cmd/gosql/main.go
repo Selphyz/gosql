@@ -7,7 +7,12 @@ import (
 
 	"gosql/internal/cli"
 
+	_ "github.com/denisenkom/go-mssqldb"
+	_ "github.com/sijms/go-ora/v2"
+
 	_ "gosql/internal/provider/mysql"
+	_ "gosql/internal/provider/oracle"
+	_ "gosql/internal/provider/sqlserver"
 )
 
 func main() {

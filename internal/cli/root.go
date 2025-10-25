@@ -66,7 +66,8 @@ func NewRootCommand() *cobra.Command {
 		},
 	}
 
-	cmd.PersistentFlags().StringVar(&common.Provider, "provider", common.Provider, "SQL provider to use (default: mysql)")
+	cmd.PersistentFlags().StringVar(&common.Provider, "provider", common.Provider, "SQL provider to use (deprecated; use --database)")
+	cmd.PersistentFlags().StringVar(&common.Provider, "database", common.Provider, "Database provider: mysql|oracle|sqlserver (default: mysql)")
 	cmd.PersistentFlags().IntVar(&common.ChunkSize, "chunk", common.ChunkSize, "Number of rows per batch when streaming data")
 	cmd.PersistentFlags().BoolVar(&common.SingleTransaction, "single-transaction", false, "Attempt to use a single consistent transaction snapshot")
 	cmd.PersistentFlags().BoolVar(&common.Progress, "progress", false, "Print progress information")
