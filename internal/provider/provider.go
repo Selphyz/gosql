@@ -16,4 +16,6 @@ type SQLProvider interface {
 	DisableConstraints(ctx context.Context, db *sql.DB) (restore func(context.Context) error, err error)
 	QuoteIdent(string) string
 	QuoteLiteral(any) (string, error)
+	DatabaseMetadata(ctx context.Context, db *sql.DB, dbName string) (DatabaseMetadata, error)
+	EnsureDatabase(ctx context.Context, dsn string, dbName string, meta DatabaseMetadata) error
 }

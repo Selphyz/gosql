@@ -4,11 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	driver "github.com/go-sql-driver/mysql"
@@ -331,6 +333,70 @@ func (*Provider) QuoteLiteral(value any) (string, error) {
 	return "", fmt.Errorf("unsupported literal type %T", value)
 }
 
+// DatabaseMetadata returns the default charset and collation for the given schema.
+func (*Provider) DatabaseMetadata(ctx context.Context, db *sql.DB, dbName string) (provider.DatabaseMetadata, error) {
+	const query = `
+SELECT DEFAULT_CHARACTER_SET_NAME, DEFAULT_COLLATION_NAME
+FROM INFORMATION_SCHEMA.SCHEMATA
+WHERE SCHEMA_NAME = ?;
+`
+	var meta provider.DatabaseMetadata
+	err := db.QueryRowContext(ctx, query, dbName).Scan(&meta.Charset, &meta.Collation)
+	if errors.Is(err, sql.ErrNoRows) {
+		return provider.DatabaseMetadata{}, fmt.Errorf("database %s not found", dbName)
+	}
+	if err != nil {
+		return provider.DatabaseMetadata{}, err
+	}
+	return meta, nil
+}
+
+// EnsureDatabase makes sure the destination schema exists, creating it with matching collation if needed.
+func (p *Provider) EnsureDatabase(ctx context.Context, dsn string, dbName string, meta provider.DatabaseMetadata) error {
+	cfg, err := driver.ParseDSN(dsn)
+	if err != nil {
+		return fmt.Errorf("parse DSN: %w", err)
+	}
+
+	rootCfg := *cfg
+	rootCfg.DBName = ""
+	if cfg.Params != nil {
+		params := make(map[string]string, len(cfg.Params))
+		for k, v := range cfg.Params {
+			params[k] = v
+		}
+		rootCfg.Params = params
+	}
+
+	rootDSN := rootCfg.FormatDSN()
+	rootDB, err := sql.Open(p.DriverName(), rootDSN)
+	if err != nil {
+		return fmt.Errorf("open destination server: %w", err)
+	}
+	defer rootDB.Close()
+
+	if err := rootDB.PingContext(ctx); err != nil {
+		return fmt.Errorf("ping destination server: %w", err)
+	}
+
+	exists, err := databaseExists(ctx, rootDB, dbName)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return nil
+	}
+
+	stmt, err := buildCreateDatabaseStatement(p, dbName, meta)
+	if err != nil {
+		return err
+	}
+	if _, err := rootDB.ExecContext(ctx, stmt); err != nil {
+		return fmt.Errorf("create database %s: %w", dbName, err)
+	}
+	return nil
+}
+
 func quoteString(s string) string {
 	return "'" + escapeReplacer.Replace(s) + "'"
 }
@@ -357,4 +423,48 @@ func formatTime(t time.Time) string {
 		return formatted
 	}
 	return t.Format("2006-01-02 15:04:05")
+}
+
+func databaseExists(ctx context.Context, db *sql.DB, name string) (bool, error) {
+	var dummy string
+	err := db.QueryRowContext(ctx, "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?", name).Scan(&dummy)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func buildCreateDatabaseStatement(p *Provider, name string, meta provider.DatabaseMetadata) (string, error) {
+	stmt := "CREATE DATABASE " + p.QuoteIdent(name)
+	if meta.Charset != "" {
+		if err := validateMySQLName(meta.Charset); err != nil {
+			return "", fmt.Errorf("invalid charset %q: %w", meta.Charset, err)
+		}
+		stmt += " CHARACTER SET " + meta.Charset
+	}
+	if meta.Collation != "" {
+		if err := validateMySQLName(meta.Collation); err != nil {
+			return "", fmt.Errorf("invalid collation %q: %w", meta.Collation, err)
+		}
+		stmt += " COLLATE " + meta.Collation
+	}
+	return stmt, nil
+}
+
+func validateMySQLName(name string) error {
+	if name == "" {
+		return errors.New("empty name")
+	}
+	for _, r := range name {
+		switch {
+		case unicode.IsLetter(r), unicode.IsDigit(r), r == '_', r == '-', r == '$':
+			continue
+		default:
+			return fmt.Errorf("invalid character %q", r)
+		}
+	}
+	return nil
 }

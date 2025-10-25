@@ -72,6 +72,7 @@ gosql --src "mysql://user:pass@src:3306/mydb" --dst "mysql://user:pass@dst:3306/
 - `--single-transaction`: Use a consistent snapshot/transaction
 - `--progress`: Print per-table progress information
 - `--drop-first`: Drop existing tables on the destination (migrate only)
+- The migrator will create the destination database automatically (matching the source charset and collation) when it is missing and credentials permit.
 
 ## Testing
 

@@ -41,15 +41,24 @@ func Run(ctx context.Context, opts Options) (err error) {
 	}
 	defer srcDB.Close()
 
+	if err := srcDB.PingContext(ctx); err != nil {
+		return fmt.Errorf("ping source: %w", err)
+	}
+
+	meta, err := srcProv.DatabaseMetadata(ctx, srcDB, srcDBName)
+	if err != nil {
+		return fmt.Errorf("fetch source database metadata: %w", err)
+	}
+	if err := dstProv.EnsureDatabase(ctx, dstDSN, dstDBName, meta); err != nil {
+		return fmt.Errorf("ensure destination database: %w", err)
+	}
+
 	dstDB, err := sql.Open(dstProv.DriverName(), dstDSN)
 	if err != nil {
 		return fmt.Errorf("open destination: %w", err)
 	}
 	defer dstDB.Close()
 
-	if err := srcDB.PingContext(ctx); err != nil {
-		return fmt.Errorf("ping source: %w", err)
-	}
 	if err := dstDB.PingContext(ctx); err != nil {
 		return fmt.Errorf("ping destination: %w", err)
 	}
