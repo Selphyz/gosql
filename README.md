@@ -146,7 +146,7 @@ server=host;database=dbname;user id=user;password=pass
 ## Testing
 
 ```bash
-go test ./...
+go test ./test/... -v
 ```
 
 Unit tests cover DSN parsing, literal quoting, SQL emission, and connection normalization.
