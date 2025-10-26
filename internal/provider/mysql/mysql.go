@@ -416,9 +416,7 @@ func formatTime(t time.Time) string {
 	const layout = "2006-01-02 15:04:05.000000"
 	formatted := t.Format(layout)
 	formatted = strings.TrimRight(formatted, "0")
-	if strings.HasSuffix(formatted, ".") {
-		formatted = formatted[:len(formatted)-1]
-	}
+	formatted = strings.TrimSuffix(formatted, ".")
 	if strings.Contains(formatted, ".") {
 		return formatted
 	}
